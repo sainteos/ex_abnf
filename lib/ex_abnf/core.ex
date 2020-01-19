@@ -23,7 +23,7 @@ defmodule ABNF.Core do
   @spec alpha?(char) :: boolean
   def alpha?(char) do
     (char >= 0x41 and char <= 0x5A) or
-    (char >= 0x61 and char <= 0x7A)
+      (char >= 0x61 and char <= 0x7A)
   end
 
   @doc """
@@ -48,6 +48,14 @@ defmodule ABNF.Core do
   @spec cr?(char) :: boolean
   def cr?(char) do
     char === 0x0D
+  end
+
+  @doc """
+  CRLF = CR LF ; Internet standard newline
+  """
+  @spec crlf?(charlist) :: boolean
+  def crlf?(charlist) do
+    charlist === [13, 10]
   end
 
   @doc """
@@ -80,8 +88,8 @@ defmodule ABNF.Core do
   @spec hexdig?(char) :: boolean
   def hexdig?(char) do
     digit?(char) or
-    (char >= 0x41 and char <= 0x46) or
-    (char >= 0x61 and char <= 0x66)
+      (char >= 0x41 and char <= 0x46) or
+      (char >= 0x61 and char <= 0x66)
   end
 
   @doc """

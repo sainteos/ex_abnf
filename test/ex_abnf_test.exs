@@ -15,9 +15,209 @@
 ################################################################################
 defmodule ABNF_Test do
   alias ABNF.CaptureResult, as: Res
+  alias ABNF.Util
   use ExUnit.Case, async: true
   require Logger
   @on_load :init
+
+  @ipv6_addresses [
+    '::',
+    '1:2:3:4:5:6:7:8',
+    '1:2:3:4:5:6:192.168.0.1',
+    'FE80:0000:0000:0000:0202:B3FF:FE1E:8329',
+    '::1',
+    '1::1:2:3:4:5:6',
+    '1:2::3:4:5:6:7',
+    '::1:2:3:4:5',
+    'fe80::200:f8ff:fe21:67cf',
+    '2001:db8::1',
+    '2001:db8:a0b:12f0::1',
+    'fdf8:f53b:82e4::53',
+    '2001:db8:85a3::8a2e:370:7334',
+    '::ffff:c000:0280',
+    '2001:db8::2:1',
+    '2001:db8::1:0:0:1',
+    'FE80:0:0:0:903A::11E4',
+    'FE80::903A:0:0:11E4',
+    '2001:db8:122:344::192.0.2.33',
+    '2001:db8:122:344:c0:2:2100::',
+    '2001:db8:122:3c0:0:221::',
+    '2001:db8:122:c000:2:2100::',
+    '2001:db8:1c0:2:21::',
+    '2001:db8:c000:221::',
+    '::1',
+    '::',
+    '0:0:0:0:0:0:0:1',
+    '0:0:0:0:0:0:0:0',
+    '2001:DB8:0:0:8:800:200C:417A',
+    'FF01:0:0:0:0:0:0:101',
+    '2001:DB8::8:800:200C:417A',
+    'FF01::101',
+    'fe80::217:f2ff:fe07:ed62',
+    '2001:0000:1234:0000:0000:C1C0:ABCD:0876',
+    '3ffe:0b00:0000:0000:0001:0000:0000:000a',
+    'FF02:0000:0000:0000:0000:0000:0000:0001',
+    '0000:0000:0000:0000:0000:0000:0000:0001',
+    '0000:0000:0000:0000:0000:0000:0000:0000',
+    '2::10',
+    'ff02::1',
+    'fe80::',
+    '2002::',
+    '2001:db8::',
+    '2001:0db8:1234::',
+    '::ffff:0:0',
+    '::1',
+    '1:2:3:4:5:6:7:8',
+    '1:2:3:4:5:6::8',
+    '1:2:3:4:5::8',
+    '1:2:3:4::8',
+    '1:2:3::8',
+    '1:2::8',
+    '1::8',
+    '1::2:3:4:5:6:7',
+    '1::2:3:4:5:6',
+    '1::2:3:4:5',
+    '1::2:3:4',
+    '1::2:3',
+    '1::8',
+    '::2:3:4:5:6:7:8',
+    '::2:3:4:5:6:7',
+    '::2:3:4:5:6',
+    '::2:3:4:5',
+    '::2:3:4',
+    '::2:3',
+    '::8',
+    '1:2:3:4:5:6::',
+    '1:2:3:4:5::',
+    '1:2:3:4::',
+    '1:2:3::',
+    '1:2::',
+    '1::',
+    '1:2:3:4:5::7:8',
+    '1:2:3:4::7:8',
+    '1:2:3::7:8',
+    '1:2::7:8',
+    '1::7:8',
+    '1:2:3:4:5:6:1.2.3.4',
+    '1:2:3:4:5::1.2.3.4',
+    '1:2:3:4::1.2.3.4',
+    '1:2:3::1.2.3.4',
+    '1:2::1.2.3.4',
+    '1::1.2.3.4',
+    '1:2:3:4::5:1.2.3.4',
+    '1:2:3::5:1.2.3.4',
+    '1:2::5:1.2.3.4',
+    '1::5:1.2.3.4',
+    '1::5:11.22.33.44',
+    'fe80::217:f2ff:254.7.237.98',
+    '::ffff:192.168.1.26',
+    '::ffff:192.168.1.1',
+    '0:0:0:0:0:0:13.1.68.3',
+    '0:0:0:0:0:FFFF:129.144.52.38',
+    '::13.1.68.3',
+    '::FFFF:129.144.52.38',
+    'fe80:0:0:0:204:61ff:254.157.241.86',
+    'fe80::204:61ff:254.157.241.86',
+    '::ffff:12.34.56.78',
+    '::ffff:192.0.2.128',
+    'fe80:0000:0000:0000:0204:61ff:fe9d:f156',
+    'fe80:0:0:0:204:61ff:fe9d:f156',
+    'fe80::204:61ff:fe9d:f156',
+    '::1',
+    'fe80::',
+    'fe80::1',
+    '::ffff:c000:280',
+    '2001:0db8:85a3:0000:0000:8a2e:0370:7334',
+    '2001:db8:85a3:0:0:8a2e:370:7334',
+    '2001:db8:85a3::8a2e:370:7334',
+    '2001:0db8:0000:0000:0000:0000:1428:57ab',
+    '2001:0db8:0000:0000:0000::1428:57ab',
+    '2001:0db8:0:0:0:0:1428:57ab',
+    '2001:0db8:0:0::1428:57ab',
+    '2001:0db8::1428:57ab',
+    '2001:db8::1428:57ab',
+    '0000:0000:0000:0000:0000:0000:0000:0001',
+    '::1',
+    '::ffff:0c22:384e',
+    '2001:0db8:1234:0000:0000:0000:0000:0000',
+    '2001:0db8:1234:ffff:ffff:ffff:ffff:ffff',
+    '2001:db8:a::123',
+    'fe80::',
+    '1111:2222:3333:4444:5555:6666:7777:8888',
+    '1111:2222:3333:4444:5555:6666:7777::',
+    '1111:2222:3333:4444:5555:6666::',
+    '1111:2222:3333:4444:5555::',
+    '1111:2222:3333:4444::',
+    '1111:2222:3333::',
+    '1111:2222::',
+    '1111::',
+    '1111:2222:3333:4444:5555:6666::8888',
+    '1111:2222:3333:4444:5555::8888',
+    '1111:2222:3333:4444::8888',
+    '1111:2222:3333::8888',
+    '1111:2222::8888',
+    '1111::8888',
+    '::8888',
+    '1111:2222:3333:4444:5555::7777:8888',
+    '1111:2222:3333:4444::7777:8888',
+    '1111:2222:3333::7777:8888',
+    '1111:2222::7777:8888',
+    '1111::7777:8888',
+    '::7777:8888',
+    '1111:2222:3333:4444::6666:7777:8888',
+    '1111:2222:3333::6666:7777:8888',
+    '1111:2222::6666:7777:8888',
+    '1111::6666:7777:8888',
+    '::6666:7777:8888',
+    '1111:2222:3333::5555:6666:7777:8888',
+    '1111:2222::5555:6666:7777:8888',
+    '1111::5555:6666:7777:8888',
+    '::5555:6666:7777:8888',
+    '1111:2222::4444:5555:6666:7777:8888',
+    '1111::4444:5555:6666:7777:8888',
+    '::4444:5555:6666:7777:8888',
+    '1111::3333:4444:5555:6666:7777:8888',
+    '::3333:4444:5555:6666:7777:8888',
+    '::2222:3333:4444:5555:6666:7777:8888',
+    '1111:2222:3333:4444:5555:6666:123.123.123.123',
+    '1111:2222:3333:4444:5555::123.123.123.123',
+    '1111:2222:3333:4444::123.123.123.123',
+    '1111:2222:3333::123.123.123.123',
+    '1111:2222::123.123.123.123',
+    '1111::123.123.123.123',
+    '::123.123.123.123',
+    '1111:2222:3333:4444::6666:123.123.123.123',
+    '1111:2222:3333::6666:123.123.123.123',
+    '1111:2222::6666:123.123.123.123',
+    '1111::6666:123.123.123.123',
+    '::6666:123.123.123.123',
+    '1111:2222:3333::5555:6666:123.123.123.123',
+    '1111:2222::5555:6666:123.123.123.123',
+    '1111::5555:6666:123.123.123.123',
+    '::5555:6666:123.123.123.123',
+    '1111:2222::4444:5555:6666:123.123.123.123',
+    '1111::4444:5555:6666:123.123.123.123',
+    '::4444:5555:6666:123.123.123.123',
+    '1111::3333:4444:5555:6666:123.123.123.123',
+    '::2222:3333:4444:5555:6666:123.123.123.123',
+    '::0:0:0:0:0:0:0',
+    '::0:0:0:0:0:0',
+    '::0:0:0:0:0',
+    '::0:0:0:0',
+    '::0:0:0',
+    '::0:0',
+    '::0',
+    '0:0:0:0:0:0:0::',
+    '0:0:0:0:0:0::',
+    '0:0:0:0:0::',
+    '0:0:0:0::',
+    '0:0:0::',
+    '0:0::',
+    '0::',
+    '0:a:b:c:d:e:f::',
+    '::0:a:b:c:d:e:f',
+    'a:b:c:d:e:f:0::'
+  ]
 
   test "raises for incorrect line endings" do
     assert_raise ArgumentError, "Lines should end with CRLF [13,10], found [122,10]", fn ->
@@ -26,17 +226,9 @@ defmodule ABNF_Test do
   end
 
   test "can do case (in)sensitive matches - RFC7405" do
-    grammar = load "RFC7405"
+    grammar = load("RFC7405")
 
-    nil = ABNF.apply grammar, "case-sensitive", 'abc', nil
-    %Res{
-      input: 'aBc',
-      rest: '',
-      string_text: 'aBc',
-      string_tokens: ['aBc'],
-      state: nil,
-      values: _
-    } = ABNF.apply grammar, "case-sensitive", 'aBc', nil
+    nil = ABNF.apply(grammar, "case-sensitive", 'abc', nil)
 
     %Res{
       input: 'aBc',
@@ -45,7 +237,7 @@ defmodule ABNF_Test do
       string_tokens: ['aBc'],
       state: nil,
       values: _
-    } = ABNF.apply grammar, "case-insensitive-1", 'aBc', nil
+    } = ABNF.apply(grammar, "case-sensitive", 'aBc', nil)
 
     %Res{
       input: 'aBc',
@@ -54,11 +246,21 @@ defmodule ABNF_Test do
       string_tokens: ['aBc'],
       state: nil,
       values: _
-    } = ABNF.apply grammar, "case-insensitive-2", 'aBc', nil
+    } = ABNF.apply(grammar, "case-insensitive-1", 'aBc', nil)
+
+    %Res{
+      input: 'aBc',
+      rest: '',
+      string_text: 'aBc',
+      string_tokens: ['aBc'],
+      state: nil,
+      values: _
+    } = ABNF.apply(grammar, "case-insensitive-2", 'aBc', nil)
   end
 
   test "can write module code" do
-    grammar = load "module_code"
+    grammar = load("module_code")
+
     %Res{
       input: '1.2.3.4rest',
       rest: 'rest',
@@ -66,11 +268,11 @@ defmodule ABNF_Test do
       string_tokens: ['1', '.', '2', '.', '3', '.', '4'],
       state: %{ipv4address: '1.2.3.4'},
       values: ["Your ip address is: 1.2.3.4"]
-    } = ABNF.apply grammar, "ipv4address", '1.2.3.4rest', %{}
+    } = ABNF.apply(grammar, "ipv4address", '1.2.3.4rest', %{})
   end
 
   test "ipv4" do
-    grammar = load "ipv4"
+    grammar = load("ipv4")
 
     %Res{
       input: '1.2.3.4rest',
@@ -79,7 +281,7 @@ defmodule ABNF_Test do
       string_tokens: ['1', '.', '2', '.', '3', '.', '4'],
       state: %{ipv4address: '1.2.3.4'},
       values: ["Your ip address is: 1.2.3.4"]
-    } = ABNF.apply grammar, "ipv4address", '1.2.3.4rest', %{}
+    } = ABNF.apply(grammar, "ipv4address", '1.2.3.4rest', %{})
 
     %Res{
       input: '192.168.0.1rest',
@@ -88,7 +290,7 @@ defmodule ABNF_Test do
       string_tokens: ['192', '.', '168', '.', '0', '.', '1'],
       state: %{ipv4address: '192.168.0.1'},
       values: ["Your ip address is: 192.168.0.1"]
-    } = ABNF.apply grammar, "ipv4address", '192.168.0.1rest', %{}
+    } = ABNF.apply(grammar, "ipv4address", '192.168.0.1rest', %{})
 
     %Res{
       input: '255.255.255.255rest',
@@ -97,13 +299,14 @@ defmodule ABNF_Test do
       string_tokens: ['255', '.', '255', '.', '255', '.', '255'],
       state: %{ipv4address: '255.255.255.255'},
       values: ["Your ip address is: 255.255.255.255"]
-    } = ABNF.apply grammar, "ipv4address", '255.255.255.255rest', %{}
+    } = ABNF.apply(grammar, "ipv4address", '255.255.255.255rest', %{})
 
-    nil = ABNF.apply grammar, "ipv4address", '255.255.256.255rest', %{}
+    nil = ABNF.apply(grammar, "ipv4address", '255.255.256.255rest', %{})
   end
 
   test "medium complexity" do
-    grammar = load "path"
+    grammar = load("path")
+
     %Res{
       input: 'segment',
       rest: '',
@@ -111,7 +314,7 @@ defmodule ABNF_Test do
       string_tokens: ['s', 'egment'],
       state: ['segment'],
       values: _
-    } = ABNF.apply grammar, "segment", 'segment', []
+    } = ABNF.apply(grammar, "segment", 'segment', [])
 
     %Res{
       input: '/a',
@@ -120,7 +323,7 @@ defmodule ABNF_Test do
       string_tokens: ['/a'],
       state: ['a'],
       values: _
-    } = ABNF.apply grammar, "path", '/a', []
+    } = ABNF.apply(grammar, "path", '/a', [])
 
     %Res{
       input: '/aa/bb',
@@ -129,11 +332,12 @@ defmodule ABNF_Test do
       string_tokens: ['/aa/bb'],
       state: ['aa', 'bb'],
       values: _
-    } = ABNF.apply grammar, "path", '/aa/bb', []
+    } = ABNF.apply(grammar, "path", '/aa/bb', [])
   end
 
   test "basic repetition and optional" do
-    grammar = load "basic"
+    grammar = load("basic")
+
     %Res{
       input: 'helloworld rest',
       rest: ' rest',
@@ -141,7 +345,7 @@ defmodule ABNF_Test do
       string_tokens: ['helloworld'],
       state: nil,
       values: _
-    } = ABNF.apply grammar, "string1", 'helloworld rest', nil
+    } = ABNF.apply(grammar, "string1", 'helloworld rest', nil)
 
     %Res{
       input: 'helloworld rest',
@@ -150,7 +354,7 @@ defmodule ABNF_Test do
       string_tokens: ['hel'],
       state: nil,
       values: _
-    } = ABNF.apply grammar, "string2", 'helloworld rest', nil
+    } = ABNF.apply(grammar, "string2", 'helloworld rest', nil)
 
     %Res{
       input: 'helloworld rest',
@@ -159,7 +363,7 @@ defmodule ABNF_Test do
       string_tokens: ['he'],
       state: nil,
       values: _
-    } = ABNF.apply grammar, "string3", 'helloworld rest', nil
+    } = ABNF.apply(grammar, "string3", 'helloworld rest', nil)
 
     %Res{
       input: 'helloworld rest',
@@ -168,7 +372,7 @@ defmodule ABNF_Test do
       string_tokens: ['helloworld'],
       state: nil,
       values: _
-    } = ABNF.apply grammar, "string4", 'helloworld rest', nil
+    } = ABNF.apply(grammar, "string4", 'helloworld rest', nil)
 
     %Res{
       input: '3helloworld rest',
@@ -177,7 +381,7 @@ defmodule ABNF_Test do
       string_tokens: ['3', 'helloworld'],
       state: nil,
       values: _
-    } = ABNF.apply grammar, "string5", '3helloworld rest', nil
+    } = ABNF.apply(grammar, "string5", '3helloworld rest', nil)
 
     %Res{
       input: 'helloworld rest',
@@ -186,226 +390,30 @@ defmodule ABNF_Test do
       string_tokens: ['', 'helloworld'],
       state: nil,
       values: _
-    } = ABNF.apply grammar, "string5", 'helloworld rest', nil
+    } = ABNF.apply(grammar, "string5", 'helloworld rest', nil)
   end
 
   test "ipv6" do
-    grammar = load "ipv6"
+    grammar = load("ipv6")
 
-    addresses = [
-      '::',
-      '1:2:3:4:5:6:7:8',
-      '1:2:3:4:5:6:192.168.0.1',
-      'FE80:0000:0000:0000:0202:B3FF:FE1E:8329',
-      '::1',
-      '1::1:2:3:4:5:6',
-      '1:2::3:4:5:6:7',
-      '::1:2:3:4:5',
-      'fe80::200:f8ff:fe21:67cf',
-      '2001:db8::1',
-      '2001:db8:a0b:12f0::1',
-      'fdf8:f53b:82e4::53',
-      '2001:db8:85a3::8a2e:370:7334',
-      '::ffff:c000:0280',
-      '2001:db8::2:1',
-      '2001:db8::1:0:0:1',
-      'FE80:0:0:0:903A::11E4',
-      'FE80::903A:0:0:11E4',
-      '2001:db8:122:344::192.0.2.33',
-      '2001:db8:122:344:c0:2:2100::',
-      '2001:db8:122:3c0:0:221::',
-      '2001:db8:122:c000:2:2100::',
-      '2001:db8:1c0:2:21::',
-      '2001:db8:c000:221::',
-      '::1',
-      '::',
-      '0:0:0:0:0:0:0:1',
-      '0:0:0:0:0:0:0:0',
-      '2001:DB8:0:0:8:800:200C:417A',
-      'FF01:0:0:0:0:0:0:101',
-      '2001:DB8::8:800:200C:417A',
-      'FF01::101',
-      'fe80::217:f2ff:fe07:ed62',
-      '2001:0000:1234:0000:0000:C1C0:ABCD:0876',
-      '3ffe:0b00:0000:0000:0001:0000:0000:000a',
-      'FF02:0000:0000:0000:0000:0000:0000:0001',
-      '0000:0000:0000:0000:0000:0000:0000:0001',
-      '0000:0000:0000:0000:0000:0000:0000:0000',
-      '2::10',
-      'ff02::1',
-      'fe80::',
-      '2002::',
-      '2001:db8::',
-      '2001:0db8:1234::',
-      '::ffff:0:0',
-      '::1',
-      '1:2:3:4:5:6:7:8',
-      '1:2:3:4:5:6::8',
-      '1:2:3:4:5::8',
-      '1:2:3:4::8',
-      '1:2:3::8',
-      '1:2::8',
-      '1::8',
-      '1::2:3:4:5:6:7',
-      '1::2:3:4:5:6',
-      '1::2:3:4:5',
-      '1::2:3:4',
-      '1::2:3',
-      '1::8',
-      '::2:3:4:5:6:7:8',
-      '::2:3:4:5:6:7',
-      '::2:3:4:5:6',
-      '::2:3:4:5',
-      '::2:3:4',
-      '::2:3',
-      '::8',
-      '1:2:3:4:5:6::',
-      '1:2:3:4:5::',
-      '1:2:3:4::',
-      '1:2:3::',
-      '1:2::',
-      '1::',
-      '1:2:3:4:5::7:8',
-      '1:2:3:4::7:8',
-      '1:2:3::7:8',
-      '1:2::7:8',
-      '1::7:8',
-      '1:2:3:4:5:6:1.2.3.4',
-      '1:2:3:4:5::1.2.3.4',
-      '1:2:3:4::1.2.3.4',
-      '1:2:3::1.2.3.4',
-      '1:2::1.2.3.4',
-      '1::1.2.3.4',
-      '1:2:3:4::5:1.2.3.4',
-      '1:2:3::5:1.2.3.4',
-      '1:2::5:1.2.3.4',
-      '1::5:1.2.3.4',
-      '1::5:11.22.33.44',
-      'fe80::217:f2ff:254.7.237.98',
-      '::ffff:192.168.1.26',
-      '::ffff:192.168.1.1',
-      '0:0:0:0:0:0:13.1.68.3',
-      '0:0:0:0:0:FFFF:129.144.52.38',
-      '::13.1.68.3',
-      '::FFFF:129.144.52.38',
-      'fe80:0:0:0:204:61ff:254.157.241.86',
-      'fe80::204:61ff:254.157.241.86',
-      '::ffff:12.34.56.78',
-      '::ffff:192.0.2.128',
-      'fe80:0000:0000:0000:0204:61ff:fe9d:f156',
-      'fe80:0:0:0:204:61ff:fe9d:f156',
-      'fe80::204:61ff:fe9d:f156',
-      '::1',
-      'fe80::',
-      'fe80::1',
-      '::ffff:c000:280',
-      '2001:0db8:85a3:0000:0000:8a2e:0370:7334',
-      '2001:db8:85a3:0:0:8a2e:370:7334',
-      '2001:db8:85a3::8a2e:370:7334',
-      '2001:0db8:0000:0000:0000:0000:1428:57ab',
-      '2001:0db8:0000:0000:0000::1428:57ab',
-      '2001:0db8:0:0:0:0:1428:57ab',
-      '2001:0db8:0:0::1428:57ab',
-      '2001:0db8::1428:57ab',
-      '2001:db8::1428:57ab',
-      '0000:0000:0000:0000:0000:0000:0000:0001',
-      '::1',
-      '::ffff:0c22:384e',
-      '2001:0db8:1234:0000:0000:0000:0000:0000',
-      '2001:0db8:1234:ffff:ffff:ffff:ffff:ffff',
-      '2001:db8:a::123',
-      'fe80::',
-      '1111:2222:3333:4444:5555:6666:7777:8888',
-      '1111:2222:3333:4444:5555:6666:7777::',
-      '1111:2222:3333:4444:5555:6666::',
-      '1111:2222:3333:4444:5555::',
-      '1111:2222:3333:4444::',
-      '1111:2222:3333::',
-      '1111:2222::',
-      '1111::',
-      '1111:2222:3333:4444:5555:6666::8888',
-      '1111:2222:3333:4444:5555::8888',
-      '1111:2222:3333:4444::8888',
-      '1111:2222:3333::8888',
-      '1111:2222::8888',
-      '1111::8888',
-      '::8888',
-      '1111:2222:3333:4444:5555::7777:8888',
-      '1111:2222:3333:4444::7777:8888',
-      '1111:2222:3333::7777:8888',
-      '1111:2222::7777:8888',
-      '1111::7777:8888',
-      '::7777:8888',
-      '1111:2222:3333:4444::6666:7777:8888',
-      '1111:2222:3333::6666:7777:8888',
-      '1111:2222::6666:7777:8888',
-      '1111::6666:7777:8888',
-      '::6666:7777:8888',
-      '1111:2222:3333::5555:6666:7777:8888',
-      '1111:2222::5555:6666:7777:8888',
-      '1111::5555:6666:7777:8888',
-      '::5555:6666:7777:8888',
-      '1111:2222::4444:5555:6666:7777:8888',
-      '1111::4444:5555:6666:7777:8888',
-      '::4444:5555:6666:7777:8888',
-      '1111::3333:4444:5555:6666:7777:8888',
-      '::3333:4444:5555:6666:7777:8888',
-      '::2222:3333:4444:5555:6666:7777:8888',
-      '1111:2222:3333:4444:5555:6666:123.123.123.123',
-      '1111:2222:3333:4444:5555::123.123.123.123',
-      '1111:2222:3333:4444::123.123.123.123',
-      '1111:2222:3333::123.123.123.123',
-      '1111:2222::123.123.123.123',
-      '1111::123.123.123.123',
-      '::123.123.123.123',
-      '1111:2222:3333:4444::6666:123.123.123.123',
-      '1111:2222:3333::6666:123.123.123.123',
-      '1111:2222::6666:123.123.123.123',
-      '1111::6666:123.123.123.123',
-      '::6666:123.123.123.123',
-      '1111:2222:3333::5555:6666:123.123.123.123',
-      '1111:2222::5555:6666:123.123.123.123',
-      '1111::5555:6666:123.123.123.123',
-      '::5555:6666:123.123.123.123',
-      '1111:2222::4444:5555:6666:123.123.123.123',
-      '1111::4444:5555:6666:123.123.123.123',
-      '::4444:5555:6666:123.123.123.123',
-      '1111::3333:4444:5555:6666:123.123.123.123',
-      '::2222:3333:4444:5555:6666:123.123.123.123',
-      '::0:0:0:0:0:0:0',
-      '::0:0:0:0:0:0',
-      '::0:0:0:0:0',
-      '::0:0:0:0',
-      '::0:0:0',
-      '::0:0',
-      '::0',
-      '0:0:0:0:0:0:0::',
-      '0:0:0:0:0:0::',
-      '0:0:0:0:0::',
-      '0:0:0:0::',
-      '0:0:0::',
-      '0:0::',
-      '0::',
-      '0:a:b:c:d:e:f::',
-      '::0:a:b:c:d:e:f',
-      'a:b:c:d:e:f:0::'
-    ]
 
-    Enum.each addresses, fn(a) ->
-      Logger.debug "Testing IPv6: #{inspect a}"
+    Enum.each(@ipv6_addresses, fn a ->
+      Logger.debug("Testing IPv6: #{inspect(a)}")
       string = a ++ 'rest'
+
       %Res{
         input: ^string,
         rest: 'rest',
         string_text: ^a,
         state: %{}
-      } = ABNF.apply grammar, "ipv6address", string, %{}
-    end
+      } = ABNF.apply(grammar, "ipv6address", string, %{})
+    end)
   end
 
   test "uri" do
-    grammar = load "RFC3986"
+    grammar = load("RFC3986")
     url = 'http://user:pass@host.com:421/some/path?k1=v1&k2=v2#one_fragment'
+
     %Res{
       input: ^url,
       rest: '',
@@ -429,9 +437,10 @@ defmodule ABNF_Test do
         '#one_fragment'
       ],
       values: _
-    } = ABNF.apply grammar, "uri", url, %{segments: []}
+    } = ABNF.apply(grammar, "uri", url, %{segments: []})
 
     url = 'http:/path'
+
     %Res{
       input: ^url,
       rest: '',
@@ -443,9 +452,10 @@ defmodule ABNF_Test do
       string_text: ^url,
       string_tokens: ['http', ':', '/path', '', ''],
       values: _
-    } = ABNF.apply grammar, "uri", url, %{segments: []}
+    } = ABNF.apply(grammar, "uri", url, %{segments: []})
 
     url = 'http://a.com'
+
     %Res{
       input: ^url,
       rest: '',
@@ -458,9 +468,10 @@ defmodule ABNF_Test do
       string_text: ^url,
       string_tokens: ['http', ':', '//a.com', '', ''],
       values: _
-    } = ABNF.apply grammar, "uri", url, %{segments: []}
+    } = ABNF.apply(grammar, "uri", url, %{segments: []})
 
     url = 'http://a.com:789'
+
     %Res{
       input: ^url,
       rest: '',
@@ -474,9 +485,10 @@ defmodule ABNF_Test do
       string_text: ^url,
       string_tokens: ['http', ':', '//a.com:789', '', ''],
       values: _
-    } = ABNF.apply grammar, "uri", url, %{segments: []}
+    } = ABNF.apply(grammar, "uri", url, %{segments: []})
 
     url = 'http://192.168.0.1/path'
+
     %Res{
       input: ^url,
       rest: '',
@@ -490,9 +502,10 @@ defmodule ABNF_Test do
       string_text: ^url,
       string_tokens: ['http', ':', '//192.168.0.1/path', '', ''],
       values: _
-    } = ABNF.apply grammar, "uri", url, %{segments: []}
+    } = ABNF.apply(grammar, "uri", url, %{segments: []})
 
     url = 'http:'
+
     %Res{
       input: ^url,
       rest: '',
@@ -503,9 +516,10 @@ defmodule ABNF_Test do
       string_text: ^url,
       string_tokens: ['http', ':', '', '', ''],
       values: _
-    } = ABNF.apply grammar, "uri", url, %{segments: []}
+    } = ABNF.apply(grammar, "uri", url, %{segments: []})
 
     url = 'http:path1/path2'
+
     %Res{
       input: ^url,
       rest: '',
@@ -517,9 +531,10 @@ defmodule ABNF_Test do
       string_text: ^url,
       string_tokens: ['http', ':', 'path1/path2', '', ''],
       values: _
-    } = ABNF.apply grammar, "uri", url, %{segments: []}
+    } = ABNF.apply(grammar, "uri", url, %{segments: []})
 
     url = 'http://[v1.fe80::a+en1]/path'
+
     %Res{
       input: ^url,
       rest: '',
@@ -533,11 +548,12 @@ defmodule ABNF_Test do
       string_text: ^url,
       string_tokens: ['http', ':', '//[v1.fe80::a+en1]/path', '', ''],
       values: _
-    } = ABNF.apply grammar, "uri", url, %{segments: []}
+    } = ABNF.apply(grammar, "uri", url, %{segments: []})
   end
 
   test "can reduce rule" do
-    grammar = load "reduce"
+    grammar = load("reduce")
+
     %Res{
       input: '123asd',
       rest: '',
@@ -545,13 +561,14 @@ defmodule ABNF_Test do
       string_text: '123asd',
       string_tokens: ['123', 'asd'],
       values: [%{int: 123, string: "asd"}]
-    } = ABNF.apply grammar, "composed", '123asd', %{field: false}
+    } = ABNF.apply(grammar, "composed", '123asd', %{field: false})
   end
 
   test "teluri" do
-    grammar = load "RFC3966"
+    grammar = load("RFC3966")
 
     tel = 'tel:+1-201-555-0123'
+
     %Res{
       input: 'tel:+1-201-555-0123',
       rest: '',
@@ -559,9 +576,10 @@ defmodule ABNF_Test do
       string_text: 'tel:+1-201-555-0123',
       string_tokens: ['tel:', '+1-201-555-0123'],
       values: _
-    } = ABNF.apply grammar, "telephone-uri", tel, %{}
+    } = ABNF.apply(grammar, "telephone-uri", tel, %{})
 
     tel = 'tel:863-1234;phone-context=+1-914-555'
+
     %Res{
       input: 'tel:863-1234;phone-context=+1-914-555',
       rest: '',
@@ -569,12 +587,13 @@ defmodule ABNF_Test do
       string_text: 'tel:863-1234;phone-context=+1-914-555',
       string_tokens: ['tel:', '863-1234;phone-context=+1-914-555'],
       values: _
-    } = ABNF.apply grammar, "telephone-uri", tel, %{}
+    } = ABNF.apply(grammar, "telephone-uri", tel, %{})
   end
 
   test "sdp" do
-    grammar = load "RFC4566"
-    data = to_char_list(File.read! "test/resources/sdp1.txt")
+    grammar = load("RFC4566")
+    data = to_charlist(File.read!("test/resources/sdp1.txt"))
+
     %Res{
       input: ^data,
       rest: '',
@@ -607,12 +626,13 @@ defmodule ABNF_Test do
         'm=audio 49170 RTP/AVP 0 8 97\r\na=rtpmap:0 PCMU/8000\r\na=rtpmap:8 PCMA/8000\r\na=rtpmap:97 iLBC/8000\r\nm=video 51372 RTP/AVP 31 32\r\na=rtpmap:31 H261/90000\r\na=rtpmap:32 MPV/90000\r\n'
       ],
       values: _
-      } = ABNF.apply grammar, "session-description", data, %{}
+    } = ABNF.apply(grammar, "session-description", data, %{})
   end
 
   test "sip" do
-    grammar = load "RFC3261"
-    data = to_char_list(File.read! "test/resources/sip1.txt")
+    grammar = load("RFC3261")
+    data = to_charlist(File.read!("test/resources/sip1.txt"))
+
     %Res{
       input: ^data,
       rest: '',
@@ -640,15 +660,17 @@ defmodule ABNF_Test do
       },
       string_text: ^data,
       string_tokens: [^data]
-    } = ABNF.apply grammar, "SIP-message", data, %{
-      headers: %{}
-    }
+    } =
+      ABNF.apply(grammar, "SIP-message", data, %{
+        headers: %{}
+      })
   end
 
   test "email" do
-    grammar = load "RFC5322-no-obs"
+    grammar = load("RFC5322-no-obs")
 
     email = 'user@domain.com'
+
     %Res{
       input: ^email,
       rest: '',
@@ -659,9 +681,10 @@ defmodule ABNF_Test do
       string_text: ^email,
       string_tokens: ['user@domain.com'],
       values: _
-    } = ABNF.apply grammar, "mailbox", email, %{}
+    } = ABNF.apply(grammar, "mailbox", email, %{})
 
     email = '<user@domain.com>'
+
     %Res{
       input: ^email,
       rest: '',
@@ -672,9 +695,10 @@ defmodule ABNF_Test do
       string_text: ^email,
       string_tokens: ['<user@domain.com>'],
       values: _
-    } = ABNF.apply grammar, "mailbox", email, %{}
+    } = ABNF.apply(grammar, "mailbox", email, %{})
 
     email = 'Peter Cantropus <user@domain.com>'
+
     %Res{
       input: ^email,
       rest: '',
@@ -686,9 +710,10 @@ defmodule ABNF_Test do
       string_text: ^email,
       string_tokens: ['Peter Cantropus <user@domain.com>'],
       values: _
-    } = ABNF.apply grammar, "mailbox", email, %{}
+    } = ABNF.apply(grammar, "mailbox", email, %{})
 
     input = '21 Nov 1997 10:01:22 -0600'
+
     %Res{
       input: ^input,
       rest: '',
@@ -704,9 +729,10 @@ defmodule ABNF_Test do
       string_text: ^input,
       string_tokens: [[], '21 Nov 1997 ', '10:01:22 -0600', []],
       values: _
-    } = ABNF.apply grammar, "date-time", input, %{}
+    } = ABNF.apply(grammar, "date-time", input, %{})
 
     input = 'Received: from node.example by x.y.test; 21 Nov 1997 10:01:22 -0600\r\n'
+
     %Res{
       input: ^input,
       rest: '',
@@ -721,48 +747,175 @@ defmodule ABNF_Test do
         year: '1997'
       },
       string_text: ^input,
-      string_tokens: ['Received:', ' from node.example by x.y.test', ';', ' 21 Nov 1997 10:01:22 -0600', '\r\n'],
+      string_tokens: [
+        'Received:',
+        ' from node.example by x.y.test',
+        ';',
+        ' 21 Nov 1997 10:01:22 -0600',
+        '\r\n'
+      ],
       values: _
-    } = ABNF.apply grammar, "Received", input, %{}
+    } = ABNF.apply(grammar, "Received", input, %{})
+  end
+@rules [
+    { "iri", [pass: ['https://thisisauri.com',
+                     'mailto:banana@uri.com',
+                     'http://uriwithport.com:5887'],
+              fail: []]},
+    {"ihier-part", [pass: ['//authority/path',
+                           '//authority/',
+                           '//authority',
+                           '//authority:9999',
+                           '//authority:999/path'],
+                   fail: []]},
+    {"iri-reference", [pass: [], fail: []]},
+    {"absolute-iri", [pass: [], fail: []]},
+    {"irelative-ref", [pass: [], fail: []]},
+    {"irelative-part", [pass: [], fail: []]},
+    {"iauthority", [pass: [], fail: []]},
+    {"iuserinfo", [pass: [], fail: []]},
+    {"ihost", [pass: [], fail: []]},
+    {"ireg-name", [pass: [], fail: []]},
+    {"ipath", [pass: [], fail: []]},
+    {"ipath-abempty", [pass: [], fail: []]},
+    {"ipath-absolute", [pass: [], fail: []]},
+    {"ipath-noscheme", [pass: [], fail: []]},
+    {"ipath-empty", [pass: [], fail: []]},
+    {"isegment", [pass: [], fail: []]},
+    {"isegment-nz", [pass: [], fail: []]},
+    {"isegment-nz-nc", [pass: [], fail: []]},
+    {"ipchar", [pass: [], fail: []]},
+    {"iquery", [pass: [], fail: []]},
+    {"ifragment", [pass: [], fail: []]},
+    {"iunreserved", [pass: [], fail: []]},
+    {"ucschar", [pass: [], fail: []]},
+    {"iprivate", [pass: [], fail: []]},
+    {"scheme", [pass: [], fail: []]},
+    {"port", [pass: ['1111', '0', '999999999999'],
+              fail: ['L', '444s', '444ss', 'Abso4999', '4999L']]},
+    {"ip-literal", [pass: [], fail: []]},
+    {"IPv6address", [pass: @ipv6_addresses, fail: ['0000:0000', '5']]},
+    {"h16", [pass: ['F', 'FF', 'FFF', 'FFFF',
+             '0', '00', '000', '0000',
+             '4', '44', '444', '4444'],
+             fail: ['H', 'HH', 'HHH', 'HHHH', 'GGGGG', '44444']]},
+    {"ls32", [pass: ['0000:0000', 'FFFF:FFFF', '192.168.0.1'],
+              fail: ['FF', '169']]},
+    {"ipv4address", [pass: ['1.1.1.1', '255.255.255.255',
+                     '192.168.0.0', '0.0.0.0',
+                     '0.0.0.2', '0.0.2.0',
+                     '0.2.0.0', '2.0.0.0']]},
+    {"dec-octet", [pass: ['255', '0', '128'],
+                   fail: ['399', '']]},
+    {"pct-encoded", [pass: ['%FF', '%00'],
+                     fail: ['00', '0', '%0']]},
+    {"unreserved", [pass: ['A', 'a', '0', '9', '-', '.', '_', '~']]},
+    {"reserved", [pass: [':', '/', '?', '\#', '[', ']', '@',
+                    '!', '$', '&', '(', ')',
+                    '*', '+', ',', ';', '='],
+                  fail: ['\\', '5', 'F']]},
+    {"gen-delims", [pass: [':', '/', '?', '\#', '[', ']', '@']]},
+    {"sub-delims", [pass: ['!', '$', '&', '\'', '(', ')',
+                      '*', '+', ',', ';', '='],
+                    fail: ['5', 'F']]}
+  ]
+
+  test "Load and parse rfc3987/IRI grammar" do
+
+    grammar = load("rfc3987_grammar")
+    assert(grammar, "RFC3987 grammar couldn't be loaded...")
+
+    assert_input = fn rule, input, expected ->
+      Logger.debug("Testing #{rule} with #{input} to #{expected}.")
+      output = ABNF.apply(grammar, rule, input, %{})
+      if expected == :pass do
+        assert(output && output.rest == '')
+      else expected == :fail
+        assert(!output || output.rest != '')
+      end
+    end
+
+    assert_rule = fn rule, pass_list, fail_list ->
+      if is_list(pass_list) and pass_list != [] do
+        Enum.map(pass_list, &assert_input.(rule, &1, :pass))
+      end
+      if is_list(fail_list) and fail_list != [] do
+        Enum.map(fail_list, &assert_input.(rule, &1, :fail))
+      end
+    end
+
+    init_list = &(if !&1, do: [], else: &1)
+    Enum.map(@rules, fn rule ->
+      assert_rule.(elem(rule, 0), init_list.(elem(rule, 1)[:pass]), init_list.(elem(rule, 1)[:fail]))
+    end)
+  end
+
+  test "Load RFC3987 grammar, and validate input against rules" do
+    grammar = load("rfc3987_grammar")
+    assert(grammar, "RFC3987 grammar couldn't be loaded...")
+
+    Enum.map(@rules, fn rule ->
+      if(elem(rule, 1)[:pass] != nil and elem(rule, 1)[:pass] != []) do
+        Enum.map(elem(rule, 1)[:pass], fn input ->
+          Logger.debug("Testing Matching #{elem(rule, 0)} with #{input} to match.")
+          assert(ABNF.match_input(grammar, elem(rule, 0), input) == :match)
+        end)
+      end
+      if(elem(rule, 1)[:fail] != nil and elem(rule, 1)[:fail] != nil) do
+        Enum.map(elem(rule, 1)[:fail], fn input ->
+          Logger.debug("Testing Matching #{elem(rule, 0)} with #{input} to not match.")
+          assert(ABNF.match_input(grammar, elem(rule, 0), input) != :match)
+        end)
+      end
+    end)
   end
 
   # Load grammars before tests are run
   def init() do
     me = self()
-    spawn fn ->
-      :ets = :ets.new :ets, [:named_table, :public, {:read_concurrency, true}]
+
+    spawn(fn ->
+      :ets = :ets.new(:ets, [:named_table, :public, {:read_concurrency, true}])
+
       for t <- [
-        "ipv4",
-        "ipv6",
-        "path",
-        "reduce",
-        "basic",
-        "RFC7405",
-        "RFC3261",
-        "RFC3966",
-        "RFC3986",
-        "RFC4566",
-        "module_code",
-        "RFC5322-no-obs"
-      ] do
+            "ipv4",
+            "ipv6",
+            "path",
+            "reduce",
+            "basic",
+            "RFC7405",
+            "RFC3261",
+            "RFC3966",
+            "RFC3986",
+            "RFC4566",
+            "module_code",
+            "RFC5322-no-obs",
+            "rfc3987_grammar"
+          ] do
         :ets.insert_new(
-          :ets, {t, ABNF.load_file("test/resources/#{t}.abnf")}
+          :ets,
+          {t, ABNF.load_file("test/resources/#{t}.abnf")}
         )
-        :timer.sleep 1
+
+        :timer.sleep(1)
       end
-      send me, :done
+
+      send(me, :done)
+
       receive do
         _ -> :ok
       end
-    end
+    end)
+
     receive do
       :done -> :ok
     end
+
     :ok
   end
 
   defp load(file) do
-    [{^file, grammar}] = :ets.lookup :ets, file
+    [{^file, grammar}] = :ets.lookup(:ets, file)
     grammar
   end
 end

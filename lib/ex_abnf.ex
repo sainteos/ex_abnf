@@ -44,10 +44,40 @@ defmodule ABNF do
   end
 
   @doc """
-  Parses an input given a gramar, looking for the given rule.
+  Parses an input given a grammar, looking for the given rule.
   """
   @spec apply(Grammar.t, String.t, [byte], term) :: CaptureResult.t
   def apply(grammar, rule, input, state \\ nil) do
     Interpreter.apply grammar, rule, input, state
+  end
+
+  @doc """
+  Given a grammar, match an input against a rule
+  """
+  @spec match_input(Grammar.t, String.t, [byte]) :: atom
+  def match_input(grammar, rule, input) do
+    output = ABNF.apply(grammar, rule, input)
+    if(output != nil) do
+      %CaptureResult{input: i, rest: r} = output
+
+      partial = fn ->
+        unless r == nil or r == [] do
+          String.contains?(to_string(i), to_string(r))
+        else
+          false
+        end
+      end
+
+      cond do
+        r == nil or r == [] ->
+          :match
+        i == r or (r != nil and r != [] and partial.()) ->
+          :partial
+        true ->
+          Logger.debug("I: #{i}, R: #{r}")
+      end
+    else
+      :no_match
+    end
   end
 end
