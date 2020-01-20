@@ -870,6 +870,12 @@ defmodule ABNF_Test do
     end)
   end
 
+  test "Match inputs that are strings as well as charlists" do
+    grammar = load("rfc3987_grammar")
+    assert(ABNF.match_input(grammar, "iri", "https://string.net") == :match)
+    assert(ABNF.match_input(grammar, "iri", 'https://charlist.net') == :match)
+  end
+
   # Load grammars before tests are run
   def init() do
     me = self()

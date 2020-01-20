@@ -48,7 +48,7 @@ defmodule ABNF do
   """
   @spec apply(Grammar.t, String.t, [byte], term) :: CaptureResult.t
   def apply(grammar, rule, input, state \\ nil) do
-    Interpreter.apply grammar, rule, input, state
+    Interpreter.apply grammar, rule, to_charlist(input), state
   end
 
   @doc """
@@ -57,7 +57,7 @@ defmodule ABNF do
   @spec match_input(Grammar.t, String.t, [byte]) :: atom
   def match_input(grammar, rule, input) do
 
-    output = ABNF.apply(grammar, rule, to_charlist(input))
+    output = ABNF.apply(grammar, rule, input)
     if(output != nil) do
       %CaptureResult{input: i, rest: r} = output
 
