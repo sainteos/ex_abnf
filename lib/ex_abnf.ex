@@ -28,7 +28,7 @@ defmodule ABNF do
   @spec load_file(String.t) :: Grammar.t | no_return
   def load_file(file) do
     data = File.read! file
-    load to_charlist(data)
+    load to_char_list(data)
   end
 
   @doc """
@@ -48,7 +48,7 @@ defmodule ABNF do
   """
   @spec apply(Grammar.t, String.t, [byte], term) :: CaptureResult.t
   def apply(grammar, rule, input, state \\ nil) do
-    Interpreter.apply grammar, rule, to_charlist(input), state
+    Interpreter.apply grammar, rule, input, state
   end
 
   @doc """
